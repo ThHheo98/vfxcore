@@ -31,6 +31,8 @@ add_executable(vfxcore_tests
   tests/vec3_test.cpp
   tests/semantics_test.cpp
   tests/ownership_test.cpp
+  tests/move_test.cpp
+  tests/stl_test.cpp
 )
 target_link_libraries(vfxcore_tests PRIVATE vfxcore GTest::gtest_main)
 

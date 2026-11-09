@@ -3,6 +3,7 @@
 #include <memory>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 #include "vfxcore/vec3.h"
 
@@ -20,6 +21,18 @@ struct Vec3Deleter
 };
 
 using TrackedVec3Owner = std::unique_ptr<vfxcore::Vec3, Vec3Deleter>;
+
+struct Joint
+{
+    std::vector<std::shared_ptr<Joint>> children;
+    std::weak_ptr<Joint> parent;
+};
+
+struct CyclicJoint
+{
+    std::vector<std::shared_ptr<CyclicJoint>> children;
+    std::shared_ptr<CyclicJoint> parent;
+};
 
 void consumeVec3(std::unique_ptr<vfxcore::Vec3> value)
 {
@@ -60,4 +73,51 @@ TEST(Ownership, MoveTransfers)
     consumeVec3(std::move(source));
 
     EXPECT_EQ(source, nullptr);
+}
+
+TEST(Ownership, JointHierarchyUsesWeakParentLink)
+{
+    auto root = std::make_shared<Joint>();
+    auto child = std::make_shared<Joint>();
+    root->children.push_back(child);
+    child->parent = root;
+
+    std::weak_ptr<Joint> weakRoot = root;
+    std::weak_ptr<Joint> weakChild = child;
+
+    ASSERT_EQ(child->parent.lock(), root);
+
+    root.reset();
+
+    EXPECT_TRUE(weakRoot.expired());
+    EXPECT_FALSE(weakChild.expired());
+    EXPECT_TRUE(child->parent.expired());
+
+    child.reset();
+    EXPECT_TRUE(weakChild.expired());
+}
+
+TEST(Ownership, SharedParentAndChildPointersFormCycle)
+{
+    auto root = std::make_shared<CyclicJoint>();
+    auto child = std::make_shared<CyclicJoint>();
+    root->children.push_back(child);
+    child->parent = root;
+
+    std::weak_ptr<CyclicJoint> weakRoot = root;
+    std::weak_ptr<CyclicJoint> weakChild = child;
+
+    root.reset();
+    child.reset();
+
+    EXPECT_FALSE(weakRoot.expired());
+    EXPECT_FALSE(weakChild.expired());
+
+    auto retainedChild = weakChild.lock();
+    ASSERT_NE(retainedChild, nullptr);
+    retainedChild->parent.reset();
+    retainedChild.reset();
+
+    EXPECT_TRUE(weakRoot.expired());
+    EXPECT_TRUE(weakChild.expired());
 }
