@@ -11,7 +11,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clan
   add_link_options(-fsanitize=address,undefined)
 endif()
 
-add_library(vfxcore src/vec3.cpp)
+add_library(vfxcore
+  src/vec3.cpp
+  src/obj.cpp
+  src/smooth.cpp
+)
 target_include_directories(vfxcore PUBLIC include)
 
 add_executable(vfxcore_demo src/main.cpp)
@@ -33,8 +37,16 @@ add_executable(vfxcore_tests
   tests/ownership_test.cpp
   tests/move_test.cpp
   tests/stl_test.cpp
+  tests/obj_test.cpp
+  tests/smooth_test.cpp
 )
 target_link_libraries(vfxcore_tests PRIVATE vfxcore GTest::gtest_main)
 
 include(GoogleTest)
 gtest_discover_tests(vfxcore_tests)
+
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+
+target_link_libraries(vfxcore PUBLIC Eigen3::Eigen)
+add_executable(smooth apps/smooth_cli.cpp)
+target_link_libraries(smooth PRIVATE vfxcore)
